@@ -32,6 +32,7 @@ struct Item {
 
 static void appenditem(Item *item, Item **list, Item **last);
 static void calcoffsets(void);
+static void cleanup(void);
 static char *cistrstr(const char *s, const char *sub);
 static void drawmenu(void);
 static void grabkeyboard(void);
@@ -53,6 +54,8 @@ static ColorSet *normcol;
 static ColorSet *selcol;
 static ColorSet *outcol;
 static Atom clip, utf8;
+static Bool running = True;
+static int ret = 0;
 static DC *dc;
 static Item *items = NULL;
 static Item *matches, *matchend;
@@ -124,7 +127,8 @@ main(int argc, char *argv[]) {
 	setup();
 	run();
 
-	return 1; /* unreachable */
+	cleanup();
+	return ret;
 }
 
 void
@@ -164,6 +168,16 @@ cistrstr(const char *s, const char *sub) {
 		if(!strncasecmp(s, sub, len))
 			return (char *)s;
 	return NULL;
+}
+
+void
+cleanup(void) {
+	freecol(dc, normcol);
+	freecol(dc, selcol);
+	freecol(dc, outcol);
+	XDestroyWindow(dc->dpy, win);
+	XUngrabKeyboard(dc->dpy, CurrentTime);
+	freedc(dc);
 }
 
 void
@@ -291,7 +305,9 @@ keypress(XKeyEvent *ev) {
 		case XK_KP_Enter:
 			break;
 		case XK_bracketleft:
-			exit(EXIT_FAILURE);
+			ret = EXIT_FAILURE;
+			running = False;
+			return;
 		default:
 			return;
 		}
@@ -338,7 +354,9 @@ keypress(XKeyEvent *ev) {
 		sel = matchend;
 		break;
 	case XK_Escape:
-		exit(EXIT_FAILURE);
+		ret = EXIT_FAILURE;
+		running = False;
+		return;
 	case XK_Home:
 		if(sel == matches) {
 			cursor = 0;
@@ -376,8 +394,11 @@ keypress(XKeyEvent *ev) {
 	case XK_Return:
 	case XK_KP_Enter:
 		puts((sel && !(ev->state & ShiftMask)) ? sel->text : text);
-		if(!(ev->state & ControlMask))
-			exit(EXIT_SUCCESS);
+		if(!(ev->state & ControlMask)) {
+			ret = EXIT_SUCCESS;
+			running = False;
+			return;
+		}
 		if(sel)
 			sel->out = True;
 		break;
@@ -513,7 +534,7 @@ void
 run(void) {
 	XEvent ev;
 
-	while(!XNextEvent(dc->dpy, &ev)) {
+	while(running && !XNextEvent(dc->dpy, &ev)) {
 		if(XFilterEvent(&ev, win))
 			continue;
 		switch(ev.type) {

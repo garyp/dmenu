@@ -85,6 +85,19 @@ eprintf(const char *fmt, ...) {
 }
 
 void
+freecol(DC *dc, ColorSet *col) {
+	int screen = DefaultScreen(dc->dpy);
+	if(col) {
+#ifdef PANGO
+		if(&col->FG_xft)
+			XftColorFree(dc->dpy, DefaultVisual(dc->dpy, screen),
+				DefaultColormap(dc->dpy, screen), &col->FG_xft);
+#endif
+		free(col);
+	}
+}
+
+void
 freedc(DC *dc) {
 #ifdef PANGO
 	if(dc->pango_layout) {
@@ -99,9 +112,12 @@ freedc(DC *dc) {
 		XFreeFont(dc->dpy, dc->font.xfont);
 	if(dc->canvas)
 		XFreePixmap(dc->dpy, dc->canvas);
-	XFreeGC(dc->dpy, dc->gc);
-	XCloseDisplay(dc->dpy);
-	free(dc);
+	if(dc->gc)
+		XFreeGC(dc->dpy, dc->gc);
+	if(dc->dpy)
+		XCloseDisplay(dc->dpy);
+	if(dc)
+		free(dc);
 }
 
 unsigned long
