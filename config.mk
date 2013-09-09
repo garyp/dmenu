@@ -12,12 +12,17 @@ X11LIB = /usr/X11R6/lib
 XINERAMALIBS  = -lXinerama
 XINERAMAFLAGS = -DXINERAMA
 
+# Pango, comment if you don't want it
+PANGOINC := $(shell pkg-config --cflags pangoxft)
+PANGOLIBS := $(shell pkg-config --libs pangoxft)
+PANGOFLAGS := -DPANGO
+
 # includes and libs
-INCS = -I${X11INC}
-LIBS = -L${X11LIB} -lX11 ${XINERAMALIBS}
+INCS = -I${X11INC} ${PANGOINC}
+LIBS = -L${X11LIB} -lX11 ${XINERAMALIBS} ${PANGOLIBS}
 
 # flags
-CPPFLAGS = -D_BSD_SOURCE -D_POSIX_C_SOURCE=200809L -DVERSION=\"${VERSION}\" ${XINERAMAFLAGS}
+CPPFLAGS = -D_BSD_SOURCE -D_POSIX_C_SOURCE=200809L -DVERSION=\"${VERSION}\" ${XINERAMAFLAGS} ${PANGOFLAGS}
 CFLAGS   = -ansi -pedantic -Wall -Os ${INCS} ${CPPFLAGS}
 LDFLAGS  = -s ${LIBS}
 

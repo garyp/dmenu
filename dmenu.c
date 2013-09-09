@@ -15,8 +15,13 @@
 
 #define INTERSECT(x,y,w,h,r)  (MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
                              * MAX(0, MIN((y)+(h),(r).y_org+(r).height) - MAX((y),(r).y_org)))
+#ifndef MIN
 #define MIN(a,b)              ((a) < (b) ? (a) : (b))
+#endif
+#ifndef MAX
 #define MAX(a,b)              ((a) > (b) ? (a) : (b))
+#endif
+#define DEFFONT "fixed" /* xft example: "Monospace 11" */
 
 typedef struct Item Item;
 struct Item {
@@ -44,9 +49,9 @@ static char text[BUFSIZ] = "";
 static int bh, mw, mh;
 static int inputw, promptw;
 static size_t cursor = 0;
-static unsigned long normcol[ColLast];
-static unsigned long selcol[ColLast];
-static unsigned long outcol[ColLast];
+static ColorSet *normcol;
+static ColorSet *selcol;
+static ColorSet *outcol;
 static Atom clip, utf8;
 static DC *dc;
 static Item *items = NULL;
@@ -103,7 +108,10 @@ main(int argc, char *argv[]) {
 			usage();
 
 	dc = initdc();
-	initfont(dc, font);
+	initfont(dc, font ? font : DEFFONT);
+	normcol = initcolor(dc, normfgcolor, normbgcolor);
+	selcol = initcolor(dc, selfgcolor, selbgcolor);
+	outcol = initcolor(dc, outfgcolor, outbgcolor);
 
 	if(fast) {
 		grabkeyboard();
@@ -166,7 +174,7 @@ drawmenu(void) {
 	dc->x = 0;
 	dc->y = 0;
 	dc->h = bh;
-	drawrect(dc, 0, 0, mw, mh, True, BG(dc, normcol));
+	drawrect(dc, 0, 0, mw, mh, True, normcol->BG);
 
 	if(prompt && *prompt) {
 		dc->w = promptw;
@@ -177,7 +185,7 @@ drawmenu(void) {
 	dc->w = (lines > 0 || !matches) ? mw - dc->x : inputw;
 	drawtext(dc, text, normcol);
 	if((curpos = textnw(dc, text, cursor) + dc->h/2 - 2) < dc->w)
-		drawrect(dc, curpos, 2, 1, dc->h - 4, True, FG(dc, normcol));
+		drawrect(dc, curpos, 2, 1, dc->h - 4, True, normcol->FG);
 
 	if(lines > 0) {
 		/* draw vertical list */
@@ -539,13 +547,6 @@ setup(void) {
 	XineramaScreenInfo *info;
 #endif
 
-	normcol[ColBG] = getcolor(dc, normbgcolor);
-	normcol[ColFG] = getcolor(dc, normfgcolor);
-	selcol[ColBG]  = getcolor(dc, selbgcolor);
-	selcol[ColFG]  = getcolor(dc, selfgcolor);
-	outcol[ColBG]  = getcolor(dc, outbgcolor);
-	outcol[ColFG]  = getcolor(dc, outfgcolor);
-
 	clip = XInternAtom(dc->dpy, "CLIPBOARD",   False);
 	utf8 = XInternAtom(dc->dpy, "UTF8_STRING", False);
 
@@ -601,7 +602,7 @@ setup(void) {
 
 	/* create menu window */
 	swa.override_redirect = True;
-	swa.background_pixel = normcol[ColBG];
+	swa.background_pixel = normcol->BG;
 	swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
 	win = XCreateWindow(dc->dpy, root, x, y, mw, mh, 0,
 	                    DefaultDepth(dc->dpy, screen), CopyFromParent,
